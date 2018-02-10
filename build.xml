@@ -1,6 +1,16 @@
-<project name="myProject" default="compile>
+<project name="myProject" default="compile">
+
 <target name="compile">
 <javac srcdir="." destdir="."/>
+</target>
+
+<target name="run">
+    <java classname="WebServer">
+       <classpath>
+           <pathelement location="."/>
+        </classpath>
+    </java>
+
 </target>
 
 </project>

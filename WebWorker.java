@@ -1,6 +1,6 @@
 //Zachary Garcia
 //CS 371
-//Program 1
+//Program 2
 
 /**
 * Web worker: an object of this class executes in its own new thread
@@ -30,6 +30,8 @@ import java.io.*;
 import java.util.Date;
 import java.text.DateFormat;
 import java.util.TimeZone;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 
 public class WebWorker implements Runnable
 {
@@ -56,15 +58,32 @@ public void run()
    try {
       InputStream  is = socket.getInputStream();
       OutputStream os = socket.getOutputStream();
-      String filePath = readHTTPRequest(is); //The file path returned from readHTTPRequest is stored
+      
+	  String filePath = readHTTPRequest(is); //The file path returned from readHTTPRequest is stored
 	  filePath = filePath.substring(1); //The '/' character is removed from the string
 	  File f = new File(filePath); //A new file object is initialized with the given file path
-	  writeHTTPHeader(os,"text/html", f.exists()); //The writeHTTPHeader function is called with an added parameter
-	                                               //indicating whether the file exists
+	  String[] s1 = filePath.split("/");//Substring is created containing just the file name
+	  String fileName = s1[s1.length-1];
+	  String fileType = fileName.substring(fileName.lastIndexOf(".")+1);//Substring is created that contains the filetype
+	  String contentType = "";
+	  //content type is set to the appropriate type
+	  switch (fileType) {
+	    case "jpg": contentType = "image/jpg"; break;
+		case "png": contentType = "image/png"; break;
+		case "gif": contentType = "image/gif"; break;
+		case "html": contentType = "text/html"; break;
+	  }
+	  
+	  writeHTTPHeader(os,contentType, f.exists()); //The writeHTTPHeader function is called with an added parameter	                                               //indicating whether the file exists
 	  if(!f.exists())
 	    os.write("404 Not Found".getBytes());//An error message is written if the file is not found
-	  else
-        writeContent(os, filePath);//if the file is found the writeContent function is called
+	  else {
+		if(fileType.equals("html"))
+			write(os, filePath, fileType);//if the file is an html file, the write function is called
+		else
+			writeImage(os, filePath, fileType);//if the file is an image, the writeImage function is called
+	  }
+	
       os.flush();
       socket.close();
    } catch (Exception e) {
@@ -121,7 +140,7 @@ private void writeHTTPHeader(OutputStream os, String contentType, boolean found)
    os.write("Date: ".getBytes());
    os.write((df.format(d)).getBytes());
    os.write("\n".getBytes());
-   os.write("Server: Jon's very own server\n".getBytes());
+   os.write("Server: cs371 test server\n".getBytes());
    //os.write("Last-Modified: Wed, 08 Jan 2003 23:11:55 GMT\n".getBytes());
    //os.write("Content-Length: 438\n".getBytes()); 
    os.write("Connection: close\n".getBytes());
@@ -136,21 +155,39 @@ private void writeHTTPHeader(OutputStream os, String contentType, boolean found)
 * be done after the HTTP header has been written out.
 * @param os is the OutputStream object to write to
 **/	
-private void writeContent(OutputStream os, String filePath) throws Exception
+private void write(OutputStream os, String filePath, String fileType) throws Exception
 {
    //The contents of the file with the requested path are written line by line
    //by initializing a BufferedReader object for the file
-   BufferedReader in = new BufferedReader(new FileReader(filePath));
-   String line;
-   line = in.readLine();
-   while(line != null) {
-	 if (line.equals("<cs371dat>"))
-	   os.write("Date: 2/2/2018".getBytes());
-     if (line.equals("<cs371server>"))
-	 os.write(" Server: cs371 test server".getBytes());
-     os.write(line.getBytes());//As each line is read, it is written
-	 line = in.readLine();
-   }
+   
+     BufferedReader in = new BufferedReader(new FileReader(filePath));
+     String line;
+     line = in.readLine();
+     while(line != null) {
+	   if (line.equals("<cs371dat>"))
+	     os.write("Date: 2/2/2018".getBytes());
+       if (line.equals("<cs371server>"))
+	     os.write(" Server: cs371 test server\n".getBytes());
+       os.write(line.getBytes());//As each line is read, it is written
+	   line = in.readLine();
+     }
+}
+
+//function that converts an image into a byte array
+private byte[] imgToBytes(String filePath, String fileType) throws Exception{
+   BufferedImage i = ImageIO.read(new File(filePath));
+   ByteArrayOutputStream b = new ByteArrayOutputStream();
+   if (fileType.equals("jpg") || fileType.equals("jpeg")) ImageIO.write(i, "jpg", b);
+   else if (fileType.equals("png")) ImageIO.write(i, "png", b);
+   else if (fileType.equals("gif")) ImageIO.write(i, "gif", b);
+   byte[] bytes = b.toByteArray();
+   return bytes;
+}
+
+//function that writes the byte array of an image
+private void writeImage(OutputStream os, String filePath, String fileType) throws Exception
+{
+   os.write(imgToBytes(filePath, fileType));
 }
 
 } // end class
